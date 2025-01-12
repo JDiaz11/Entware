@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2006-2020 OpenWrt.org
 
+# Entware specific: keep GCC_LIBSSP|USE_GLIBC
 PKG_DEFAULT_DEPENDS = +libc +GCC_LIBSSP:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread
 
 ifneq ($(PKG_NAME),toolchain)
@@ -20,7 +21,8 @@ define Package/Default
   PROVIDES:=
   EXTRA_DEPENDS:=
   MAINTAINER:=$(PKG_MAINTAINER)
-  SOURCE:=$(patsubst $(TOPDIR)/%,%,$(CURDIR))
+  SOURCE:=$(patsubst $(TOPDIR)/%,%,$(patsubst $(TOPDIR)/package/%,feeds/base/%,$(CURDIR)))
+# Entware spesific - NO -r before $(PKG_RELEASE)
   ifneq ($(PKG_VERSION),)
     ifneq ($(PKG_RELEASE),)
       VERSION:=$(PKG_VERSION)-$(PKG_RELEASE)
@@ -49,7 +51,7 @@ define Package/Default
   KCONFIG:=
   BUILDONLY:=
   HIDDEN:=
-  URL:=
+  URL:=$(PKG_URL)
   VARIANT:=
   DEFAULT_VARIANT:=
   USERID:=
@@ -80,6 +82,7 @@ CONFIGURE_ARGS = \
 		--target=$(GNU_TARGET_NAME) \
 		--host=$(GNU_TARGET_NAME) \
 		--build=$(GNU_HOST_NAME) \
+		--disable-dependency-tracking \
 		--program-prefix="" \
 		--program-suffix="" \
 		--prefix=$(CONFIGURE_PREFIX) \
@@ -87,11 +90,11 @@ CONFIGURE_ARGS = \
 		--bindir=$(CONFIGURE_PREFIX)/bin \
 		--sbindir=$(CONFIGURE_PREFIX)/sbin \
 		--libexecdir=$(CONFIGURE_PREFIX)/lib \
-		--sysconfdir=$(CONFIGURE_PREFIX)/etc \
+		--sysconfdir=/opt/etc \
 		--datadir=$(CONFIGURE_PREFIX)/share \
-		--localstatedir=$(CONFIGURE_PREFIX)/var \
-		--mandir=$(CONFIGURE_PREFIX)/man \
-		--infodir=$(CONFIGURE_PREFIX)/info \
+		--localstatedir=/opt/var \
+		--mandir=$(CONFIGURE_PREFIX)/share/man \
+		--infodir=$(CONFIGURE_PREFIX)/share/info \
 		$(DISABLE_NLS) \
 		$(DISABLE_IPV6)
 
@@ -150,6 +153,7 @@ define Build/Install/Default
 	$(MAKE_VARS) \
 	$(MAKE) -C $(PKG_BUILD_DIR)/$(MAKE_PATH) \
 		$(MAKE_INSTALL_FLAGS) \
+		$(if $(PKG_SUBDIRS),SUBDIRS='$$$$(wildcard $(PKG_SUBDIRS))') \
 		$(if $(1), $(1), install);
 endef
 

@@ -1,19 +1,20 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=uqmi
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/uqmi.git
-PKG_SOURCE_DATE:=2022-03-12
-PKG_SOURCE_VERSION:=44dd095794a5327611d0ee1a58b0a6333d397b64
-PKG_MIRROR_HASH:=1f7890c659981e1da5c6d73911c30e24722818ff52d58f41d80cc96b62d53311
+PKG_SOURCE_DATE:=2024-08-25
+PKG_SOURCE_VERSION:=28b48a10dbcd1177095b73c6d8086d10114f49b8
+PKG_MIRROR_HASH:=ca4c07775185b873da572d973b9bbce86198d41d921a8d32b990da34e5ffd65d
 PKG_MAINTAINER:=Matti Laakso <malaakso@elisanet.fi>
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=
 
 PKG_FLAGS:=nonshared
+PKG_BUILD_FLAGS:=gc-sections
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
@@ -31,17 +32,18 @@ define Package/uqmi/description
   the QMI-protocol.
 endef
 
+# XXX Entware specific: GCC-8.x.x (cc1: error: -Werror=dangling-pointer: no option -Wdangling-pointer)
 TARGET_CFLAGS += \
-	-I$(STAGING_DIR)/opt/include -ffunction-sections -fdata-sections
-
-TARGET_LDFLAGS += -Wl,--gc-sections
+	-I$(STAGING_DIR)/opt/include \
+	$(if $(CONFIG_GCC_USE_VERSION_8),,-Wno-error=dangling-pointer) \
+	-Wno-error=maybe-uninitialized
 
 CMAKE_OPTIONS += \
 	-DDEBUG=1
 
 define Package/uqmi/install
 	$(INSTALL_DIR) $(1)/opt/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/uqmi $(1)/opt/sbin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/uqmi/uqmi $(1)/opt/sbin/
 #	$(CP) ./files/* $(1)/
 endef
 

@@ -4,6 +4,8 @@
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
+# XXX Entware specific: keep versions 2.27/2.34
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=binutils
@@ -12,6 +14,7 @@ BIN_VERSION:=$(PKG_VERSION)
 
 PKG_SOURCE_URL:=@GNU/binutils/
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
+PKG_CPE_ID:=cpe:/a:gnu:binutils
 
 TAR_OPTIONS += --exclude='*.rej'
 
@@ -20,24 +23,20 @@ ifeq ($(PKG_VERSION),2.27)
   PKG_HASH:=369737ce51587f92466041a97ab7d2358c6d9e1b6490b3940eb09fb0a9a6ac88
 endif
 
-ifeq ($(PKG_VERSION),2.32)
-  PKG_HASH:=0ab6c55dd86a92ed561972ba15b9b70a8b9f75557f896446c82e8b36e473ee04
-endif
-
 ifeq ($(PKG_VERSION),2.34)
   PKG_HASH:=f00b0e8803dc9bab1e2165bd568528135be734df3fabf8d0161828cd56028952
 endif
 
-ifeq ($(PKG_VERSION),2.35.2)
-  PKG_HASH:=dcd5b0416e7b0a9b24bed76cd8c6c132526805761863150a26d016415b8bdc7b
+ifeq ($(PKG_VERSION),2.40)
+  PKG_HASH:=0f8a4c272d7f17f369ded10a4aca28b8e304828e95526da482b0ccc4dfc9d8e1
 endif
 
-ifeq ($(PKG_VERSION),2.36.1)
-  PKG_HASH:=e81d9edf373f193af428a0f256674aea62a9d74dfe93f65192d4eae030b0f3b0
+ifeq ($(PKG_VERSION),2.42)
+  PKG_HASH:=f6e4d41fd5fc778b06b7891457b3620da5ecea1006c6a4a41ae998109f85a800
 endif
 
-ifeq ($(PKG_VERSION),2.37)
-  PKG_HASH:=820d9724f020a3e69cb337893a0b63c2db161dadcb0e06fc11dc29eb1e84a32c
+ifeq ($(PKG_VERSION),2.43.1)
+  PKG_HASH:=13f74202a3c4c51118b797a39ea4200d3f6cfbe224da6d1d95bb938480132dfd
 endif
 
 HOST_BUILD_PARALLEL:=1
@@ -46,14 +45,24 @@ PATCH_DIR:=./patches/$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/toolchain-build.mk
 
+ifdef CONFIG_GCC_USE_GRAPHITE
+  GRAPHITE_CONFIGURE:= --with-isl=$(STAGING_DIR_HOST)
+else
+  GRAPHITE_CONFIGURE:= --without-isl --without-cloog
+endif
+
 HOST_CONFIGURE_ARGS = \
 	--prefix=$(TOOLCHAIN_DIR) \
 	--build=$(GNU_HOST_NAME) \
 	--host=$(GNU_HOST_NAME) \
 	--target=$(REAL_GNU_TARGET_NAME) \
 	--with-sysroot=$(TOOLCHAIN_DIR) \
+	--with-system-zlib \
+	--$(if $(or ($(PKG_VERSION),2.27),($(PKG_VERSION),2.34)),without-zstd,with-zstd) \
 	--enable-deterministic-archives \
 	--enable-plugins \
+	--enable-lto \
+	--disable-gprofng \
 	--disable-multilib \
 	--disable-werror \
 	--disable-nls \
@@ -83,7 +92,6 @@ define Host/Prepare
 	$(call Host/Prepare/Default)
 	ln -snf $(notdir $(HOST_BUILD_DIR)) $(BUILD_DIR_TOOLCHAIN)/$(PKG_NAME)
 	$(CP) $(SCRIPT_DIR)/config.{guess,sub} $(HOST_BUILD_DIR)/
-	$(SED) 's, " Linaro.*,,' $(HOST_BUILD_DIR)/bfd/version.h
 endef
 
 define Host/Compile
@@ -91,22 +99,10 @@ define Host/Compile
 endef
 
 define Host/Install
-	mkdir -p $(TOOLCHAIN_DIR)/initial
 	$(MAKE) -C $(HOST_BUILD_DIR) \
-		prefix=$(TOOLCHAIN_DIR)/initial \
 		install
-	$(MAKE) -C $(HOST_BUILD_DIR) \
-		prefix=$(TOOLCHAIN_DIR) \
-		install
-	$(call FixupLibdir,$(TOOLCHAIN_DIR)/initial)
-	$(RM) $(TOOLCHAIN_DIR)/initial/lib/libiberty.a
+	$(call FixupLibdir,$(TOOLCHAIN_DIR))
 	$(CP) $(TOOLCHAIN_DIR)/bin/$(REAL_GNU_TARGET_NAME)-readelf $(HOST_BUILD_PREFIX)/bin/readelf
-	# ARC gcc requires extlib.
-	# If extlib is not available in "initial" folder
-	# initial gcc will fail to build libc.
-	if [ -d $(TOOLCHAIN_DIR)/extlib ]; then \
-		$(CP) -r $(TOOLCHAIN_DIR)/extlib $(TOOLCHAIN_DIR)/initial/; \
-	fi
 endef
 
 define Host/Clean

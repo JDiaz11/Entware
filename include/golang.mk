@@ -1,77 +1,63 @@
-# Strip is not recommended for go binaries. It may make binaries unusable
-RSTRIP:="/bin/true"
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2016-2024 Entware
 
-# Template for GO package 
-define Package/gopackage/Default
-	SUBMENU:=Go
-	SECTION:=lang
-	CATEGORY:=Languages
-	MAINTAINER:=Entware team, https://entware.net
+include $(TOPDIR)/feeds/golang/go_env.mk
+
+# Strip is not recommended for go binaries. It may make binaries unusable.
+RSTRIP:=:
+STRIP:=:
+
+GO_BIN:=$(STAGING_DIR_HOST)/go/bin/go
+#GO_BIN:=go
+GO_BUILD_DIR ?= $(PKG_BUILD_DIR)$(if $(GO_SRC_SUBDIR),/$(GO_SRC_SUBDIR))
+
+GO_BIN_GENERATE:= \
+	$(GO_ENV_COMMON) \
+	$(GO_BIN) generate
+
+GO_BIN_GET:= \
+	$(GO_ENV_COMMON) \
+	$(GO_BIN) get $(if $(findstring s,$(OPENWRT_VERBOSE)),-v)
+
+GO_BIN_MOD_DOWNLOAD:= \
+	$(GO_ENV_COMMON) \
+	$(GO_BIN) mod download
+
+GO_BIN_MOD_TIDY:= \
+	$(GO_ENV_COMMON) \
+	$(GO_BIN) mod tidy $(if $(findstring s,$(OPENWRT_VERBOSE)),-v)
+
+# strip bins
+GO_LDFLAG:=-s -w -buildid=
+
+GO_BUILD_CMD ?= build
+
+# path to install bins
+GO_BUILD_CMD += -o $(PKG_INSTALL_DIR)/bin/
+# enable verbose
+GO_BUILD_CMD += $(if $(findstring s,$(OPENWRT_VERBOSE)),-v -x)
+# build args: -arg1 -arg2
+GO_BUILD_CMD += $(if $(strip $(GO_BUILD_ARGS)),$(GO_BUILD_ARGS))
+# disable VCS & strip FS paths
+GO_BUILD_CMD += -buildvcs=false -trimpath
+# add ext ldflags: -X '$(XIMPORTPATH).name1=value1'
+GO_BUILD_CMD += -ldflags $(if $(strip $(GO_LDFLAGS)),"$(GO_LDFLAGS) $(GO_LDFLAG)","$(GO_LDFLAG)")
+# add tags: -tags "tag1,tag2"
+GO_BUILD_CMD += $(if $(strip $(GO_TAGS)),-tags "$(subst $(space),,$(GO_TAGS))")
+# add targets: ./path1/to/target1 ./path2/to/target2
+GO_BUILD_CMD += $(if $(strip $(GO_TARGET)),$(GO_TARGET))
+
+define Build/Configure/Go
 endef
 
-# use `go get -d` to retrieve  GO package sources when PKG_SOURCE is undefined, patch if patches dir present
-
-ifeq ($(PKG_SOURCE),)
- ifeq ($(PKG_COMMIT),)
-  define Build/Prepare
-		$(INSTALL_DIR) $(PKG_BUILD_DIR)
-		GOPATH=$(PKG_BUILD_DIR) $(GOROOT)/bin/go get -d -x $(PKG_GOGET)
-		$(Build/Patch)
-  endef
-  else
-   define Build/Prepare
-		$(INSTALL_DIR) $(PKG_BUILD_DIR)
-		mkdir -p $(PKG_BUILD_DIR)/src/$(PKG_GOGET)
-		( \
-			cd $(PKG_BUILD_DIR)/src/$(PKG_GOGET)/..; \
-			git clone https://$(PKG_GOGET); \
-			cd $(PKG_BUILD_DIR)/src/$(PKG_GOGET); \
-			git checkout $(PKG_COMMIT); \
-		)
-		$(Build/Patch)
-  endef
- endif
-endif
-
-# use standard procedure to download and unpack GO package sources (stored in https://src.entware.net).
-# Do not patch. This allows to fix version
-
-ifneq ($(PKG_SOURCE),)
-PKG_SOURCE_URL:=https://src.entware.net
-PKG_UNPACK=$(TAR) -C $(PKG_BUILD_DIR) -xf $(DL_DIR)/$(PKG_SOURCE)
- define Build/Patch
- endef
- define Build/Prepare
-		$(call Build/Prepare/Default)
- endef
-endif
-
-# pack the GO package sources retrieved by go get when PKG_SOURCE is undefined.
-# Upload them to https://src.entware.net manually!
-
-ifeq ($(PKG_SOURCE),)
- define Build/Configure
-	(cd $(PKG_BUILD_DIR); \
-		rm -f $(DL_DIR)/$(GOPKG_SOURCE) ; \
-		rm -rf `find . -type d -name .git` ; \
-		tar cjf $(DL_DIR)/$(GOPKG_SOURCE) ./src ; \
-	)
- endef
-endif
-
-# Do nothing if PKG_SOURCE is defined
-ifneq ($(PKG_SOURCE),)
- define Build/Configure
- endef
-endif
-
-# Compile with gccgo using special patched ego version of go
-
-define Build/Compile
-	( \
-		cd $(PKG_BUILD_DIR); \
-		mkdir -p bin; \
-		cd bin; \
-		CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) $(GOARM) $(GOMIPS) GOPATH=$(PKG_BUILD_DIR) $(GOROOT)/bin/go build -ldflags="-s -w" -x -v $(PKG_GOGET) ; \
-	)
+define Build/Compile/Go
+	( cd $(GO_BUILD_DIR); $(GO_VARS) $(GO_BIN) $(GO_BUILD_CMD); )
 endef
+
+define Build/Install/Go
+endef
+
+Build/Configure=$(call Build/Configure/Go)
+Build/Compile=$(call Build/Compile/Go)
+Build/Install=$(call Build/Install/Go)

@@ -11,23 +11,24 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=ppp
-PKG_RELEASE:=2
+PKG_RELEASE:=2b
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/paulusmack/ppp
 PKG_SOURCE_DATE:=2020-10-03
 PKG_SOURCE_VERSION:=ad3937a0a38a696eb1a37dbf8f92e8e6072cdccb
-PKG_MIRROR_HASH:=c5b39615eb62728431b19f3ae5428eb1e2fc705b4b7b960228fe5b5d7b5a4bca
+PKG_MIRROR_HASH:=e49a4e44026a161c37c85242dc98670b267fc51acf39a0029300b6e3393cf9d4
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=BSD-4-Clause
 PKG_CPE_ID:=cpe:/a:samba:ppp
 
 PKG_RELEASE_VERSION:=2.4.8
-PKG_VERSION:=$(PKG_RELEASE_VERSION).git-$(PKG_SOURCE_DATE)
+PKG_VERSION:=$(PKG_RELEASE_VERSION)_git$(subst -,,$(PKG_SOURCE_DATE))
 
 PKG_BUILD_DEPENDS:=libpcap
 
 PKG_ASLR_PIE_REGULAR:=1
+PKG_BUILD_FLAGS:=gc-sections lto
 PKG_BUILD_PARALLEL:=1
 PKG_INSTALL:=1
 
@@ -174,8 +175,10 @@ not initiate a session. Can be useful to debug pppoe.
 endef
 
 
-# Entware specific
+# XXX Entware specific
+ifneq ($(CONFIG_TARGET_aarch64_3_10),y)
 LINUX_UAPI_DIR=""
+endif
 
 define Build/Configure
 $(call Build/Configure/Default,, \
@@ -194,9 +197,6 @@ $(call Build/Configure/Default,, \
 	-$(CP) $(LINUX_DIR)/include/linux/compiler_types.h \
 		$(PKG_BUILD_DIR)/pppd/plugins/pppoatm/linux/
 endef
-
-TARGET_CFLAGS += -ffunction-sections -fdata-sections -flto
-TARGET_LDFLAGS += -Wl,--gc-sections -flto -fuse-linker-plugin
 
 MAKE_FLAGS += COPTS="$(TARGET_CFLAGS)" \
 		PRECOMPILED_FILTER=1 \

@@ -2,22 +2,27 @@
 #
 # Copyright (C) 2006-2021 OpenWrt.org
 #
-# Entware specific: postinst/prerm
+# Entware specific: postinst/prerm; no jsonfilter as deps; no configs
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
-PKG_VERSION:=1.35.0
-PKG_RELEASE:=2
+PKG_VERSION:=1.37.0
+PKG_RELEASE:=4
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://www.busybox.net/downloads \
-		http://sources.buildroot.net
-PKG_HASH:=faeeb244c35a348a334f4a59e44626ee870fb07b6884d68c10ae8bc19f83a694
+		https://sources.buildroot.net/$(PKG_NAME)
+PKG_HASH:=3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4
 
 PKG_BUILD_DEPENDS:=BUSYBOX_CONFIG_PAM:libpam
 PKG_BUILD_PARALLEL:=1
+PKG_BUILD_FLAGS:=lto
+ifeq ($(CONFIG_SOFT_FLOAT),)
+  PKG_BUILD_FLAGS+=no-mips16
+endif
+
 PKG_CHECK_FORMAT_SECURITY:=0
 
 PKG_LICENSE:=GPL-2.0
@@ -45,7 +50,7 @@ define Package/busybox/Default
   MAINTAINER:=Felix Fietkau <nbd@nbd.name>
   TITLE:=Core utilities for embedded Linux
   URL:=http://busybox.net/
-  DEPENDS:=+BUSYBOX_CONFIG_PAM:libpam +BUSYBOX_CONFIG_NTPD:jsonfilter
+  DEPENDS:=+BUSYBOX_CONFIG_PAM:libpam #+BUSYBOX_CONFIG_NTPD:jsonfilter
   USERID:=ntp=123:ntp=123
 endef
 
@@ -84,12 +89,12 @@ define Package/busybox/conffiles/crond
 endef
 endif
 
-define Package/busybox/conffiles
-$(Package/busybox/conffiles/syslog)
-$(Package/busybox/conffiles/crond)
-endef
+#define Package/busybox/conffiles
+#$(Package/busybox/conffiles/syslog)
+#$(Package/busybox/conffiles/crond)
+#endef
 
-Package/busybox-selinux/conffiles = $(Package/busybox/conffiles)
+#Package/busybox-selinux/conffiles = $(Package/busybox/conffiles)
 
 ifndef CONFIG_USE_MUSL
 LDLIBS:=m crypt
@@ -104,9 +109,6 @@ endif
 ifeq ($(BUILD_VARIANT),selinux)
   LDLIBS += selinux sepol
 endif
-
-TARGET_CFLAGS += -flto
-TARGET_LDFLAGS += -flto=jobserver -fuse-linker-plugin
 
 MAKE_VARS :=
 MAKE_FLAGS += \
@@ -142,10 +144,8 @@ endef
 define Package/busybox/install
 	$(INSTALL_DIR) $(1)/opt/{bin,sbin}
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/busybox $(1)/opt/bin/
-	chmod u+s $(1)/opt/bin/busybox
 	$(INSTALL_DIR) $(1)/opt/share
-	(cd $(PKG_INSTALL_DIR); \
-	    find ./opt -lname "*" | sed "s|^./opt/||g" > $(1)/opt/share/busybox_applets.lst.dist)
+	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" > $(1)/opt/share/busybox_applets.lst.dist
 endef
 
 # The postinst & prerm scripts will work only when busybox has readlink applet.

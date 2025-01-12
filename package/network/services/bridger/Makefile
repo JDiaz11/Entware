@@ -10,14 +10,14 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=bridger
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=https://github.com/nbd168/bridger
-PKG_SOURCE_DATE:=2022-04-06
-PKG_SOURCE_VERSION:=e8f6814a85b4ea951657e7018c5d77597400f44a
-PKG_MIRROR_HASH:=f917e099a9ab2a55745a7254239efabe695a722d5c448342198cdc847a4a24ac
+PKG_SOURCE_DATE:=2024-04-22
+PKG_SOURCE_VERSION:=40b1c5b6be4e73a6749cf2997c664520eb20055d
+PKG_MIRROR_HASH:=b3ba2ab5ffa1af55f8da2cae5a90df486474b97ed4c359ec40c986aa6e82c300
 
 PKG_LICENSE:=GPL-2.0
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 
-PKG_BUILD_DEPENDS:=bpf-headers
+#PKG_BUILD_DEPENDS:=bpf-headers
 
 PKG_BUILD_PARALLEL:=1
 
@@ -30,7 +30,7 @@ define Package/bridger
   SECTION:=utils
   CATEGORY:=Base system
   TITLE:=Bridge forwarding accelerator
-#  DEPENDS:=+libbpf +libubox +libubus +libnl-tiny +kmod-sched-core +kmod-sched-flower +kmod-sched-bpf +kmod-sched-act-vlan $(BPF_DEPENDS)
+  DEPENDS:=+libbpf +libubox +libubus +libnl-tiny +kmod-sched-core +kmod-sched-flower +kmod-sched-bpf +kmod-sched-act-vlan $(BPF_DEPENDS)
 endef
 
 TARGET_CFLAGS += \
@@ -59,4 +59,4 @@ define Package/bridger/install
 	$(INSTALL_BIN) ./files/bridger.init $(1)/etc/init.d/bridger
 endef
 
-$(eval $(call BuildPackage,bridger))
+#$(eval $(call BuildPackage,bridger))
